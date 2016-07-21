@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/crewjam/go-xmlsec"
+	"github.com/edaniels/go-saml/xmlsec"
 )
 
 // ServiceProvider implements SAML Service provider.
@@ -346,14 +346,7 @@ func (sp *ServiceProvider) ParseResponse(req *http.Request, possibleRequestIDs [
 
 	var assertion *Assertion
 	if resp.EncryptedAssertion == nil {
-		if err := xmlsec.Verify(sp.getIDPSigningCert(), rawResponseBuf,
-			xmlsec.SignatureOptions{
-				XMLID: []xmlsec.XMLIDOption{{
-					ElementName:      "Response",
-					ElementNamespace: "urn:oasis:names:tc:SAML:2.0:protocol",
-					AttributeName:    "ID",
-				}},
-			}); err != nil {
+		if err := xmlsec.VerifyResponseSignature(string(rawResponseBuf), string(sp.getIDPSigningCert())); err != nil {
 			retErr.PrivateErr = fmt.Errorf("failed to verify signature on response: %s", err)
 			return nil, retErr
 		}
@@ -362,27 +355,20 @@ func (sp *ServiceProvider) ParseResponse(req *http.Request, possibleRequestIDs [
 
 	// decrypt the response
 	if resp.EncryptedAssertion != nil {
-		plaintextAssertion, err := xmlsec.Decrypt([]byte(sp.Key), resp.EncryptedAssertion.EncryptedData)
+		plaintextAssertion, err := xmlsec.Decrypt(string(resp.EncryptedAssertion.EncryptedData), sp.Key)
 		if err != nil {
 			retErr.PrivateErr = fmt.Errorf("failed to decrypt response: %s", err)
 			return nil, retErr
 		}
 		retErr.Response = string(plaintextAssertion)
 
-		if err := xmlsec.Verify(sp.getIDPSigningCert(), plaintextAssertion,
-			xmlsec.SignatureOptions{
-				XMLID: []xmlsec.XMLIDOption{{
-					ElementName:      "Assertion",
-					ElementNamespace: "urn:oasis:names:tc:SAML:2.0:assertion",
-					AttributeName:    "ID",
-				}},
-			}); err != nil {
+		if err := xmlsec.VerifyAssertionSignature(plaintextAssertion, string(sp.getIDPSigningCert())); err != nil {
 			retErr.PrivateErr = fmt.Errorf("failed to verify signature on response: %s", err)
 			return nil, retErr
 		}
 
 		assertion = &Assertion{}
-		xml.Unmarshal(plaintextAssertion, assertion)
+		xml.Unmarshal([]byte(plaintextAssertion), assertion)
 	}
 
 	if err := sp.validateAssertion(assertion, possibleRequestIDs, now); err != nil {

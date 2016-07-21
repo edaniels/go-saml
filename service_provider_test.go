@@ -507,11 +507,11 @@ func (test *ServiceProviderTest) TestInvalidResponses(c *C) {
 	req := http.Request{PostForm: url.Values{}}
 	req.PostForm.Set("SAMLResponse", "???")
 	_, err = s.ParseResponse(&req, []string{"id-9e61753d64e928af5a7a341a97f420c9"})
-	c.Assert(err.(*InvalidResponseError).PrivateErr, ErrorMatches, "cannot parse base64: illegal base64 data at input byte 0")
+	c.Assert(err.(*InvalidResponseError).PrivateErr, MultilineErrorMatches, "cannot parse base64: illegal base64 data at input byte 0")
 
 	req.PostForm.Set("SAMLResponse", base64.StdEncoding.EncodeToString([]byte("<hello>World!</hello>")))
 	_, err = s.ParseResponse(&req, []string{"id-9e61753d64e928af5a7a341a97f420c9"})
-	c.Assert(err.(*InvalidResponseError).PrivateErr, ErrorMatches, "cannot unmarshal response: expected element type <Response> but have <hello>")
+	c.Assert(err.(*InvalidResponseError).PrivateErr, MultilineErrorMatches, "cannot unmarshal response: expected element type <Response> but have <hello>")
 
 	s.AcsURL = "https://wrong/saml2/acs"
 	req.PostForm.Set("SAMLResponse", base64.StdEncoding.EncodeToString([]byte(test.SamlResponse)))
@@ -551,13 +551,13 @@ func (test *ServiceProviderTest) TestInvalidResponses(c *C) {
 	s.Key = "invalid"
 	req.PostForm.Set("SAMLResponse", base64.StdEncoding.EncodeToString([]byte(test.SamlResponse)))
 	_, err = s.ParseResponse(&req, []string{"id-9e61753d64e928af5a7a341a97f420c9"})
-	c.Assert(err.(*InvalidResponseError).PrivateErr, ErrorMatches, "failed to decrypt response: .*PEM_read_bio_PrivateKey.*")
+	c.Assert(err.(*InvalidResponseError).PrivateErr, MultilineErrorMatches, "failed to decrypt response: .*PEM_read_bio_PrivateKey.*")
 	s.Key = test.Key
 
 	s.IDPMetadata.IDPSSODescriptor.KeyDescriptor[0].KeyInfo.Certificate = "invalid"
 	req.PostForm.Set("SAMLResponse", base64.StdEncoding.EncodeToString([]byte(test.SamlResponse)))
 	_, err = s.ParseResponse(&req, []string{"id-9e61753d64e928af5a7a341a97f420c9"})
-	c.Assert(err.(*InvalidResponseError).PrivateErr, ErrorMatches, "failed to verify signature on response: .*xmlSecOpenSSLAppKeyLoadMemory.*")
+	c.Assert(err.(*InvalidResponseError).PrivateErr, MultilineErrorMatches, "failed to verify signature on response: .*xmlSecOpenSSLAppCertLoadBIO.*")
 }
 
 func (test *ServiceProviderTest) TestInvalidAssertions(c *C) {

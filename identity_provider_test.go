@@ -12,8 +12,8 @@ import (
 
 	. "gopkg.in/check.v1"
 
-	"github.com/crewjam/go-xmlsec"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/edaniels/go-saml/xmlsec"
 )
 
 type IdentityProviderTest struct {
