@@ -55,9 +55,6 @@ func sign(xml string, privateKey string, id string) (string, error) {
 	defer deleteTempFile(samlXmlsecOutput.Name())
 	samlXmlsecOutput.Close()
 
-	// fmt.Println("xmlsec1", "--sign", "--privkey-pem", privateKeyFile.Name(),
-	// 	"--id-attr:ID", id,
-	// 	"--output", samlXmlsecOutput.Name(), samlXmlsecInput.Name())
 	args := []string{
 		"--sign", "--privkey-pem", privateKeyFile.Name(), "--output", samlXmlsecOutput.Name(),
 	}
@@ -79,19 +76,16 @@ func sign(xml string, privateKey string, id string) (string, error) {
 }
 
 // VerifyResponseSignature verify signature of a SAML 2.0 Response document
-// `publicCert` must be a path on the filesystem, xmlsec1 is run out of process
-// through `exec`
 func VerifyResponseSignature(xml string, publicCert string) error {
 	return verify(xml, publicCert, xmlResponseID)
 }
 
+// VerifyResponseSignature verify signature of a SAML 2.0 Assertion document
 func VerifyAssertionSignature(xml string, publicCert string) error {
 	return verify(xml, publicCert, xmlAssertionID)
 }
 
 // VerifyRequestSignature verify signature of a SAML 2.0 AuthnRequest document
-// `publicCert` must be a path on the filesystem, xmlsec1 is run out of process
-// through `exec`
 func VerifyRequestSignature(xml string, publicCert string) error {
 	return verify(xml, publicCert, xmlRequestID)
 }
@@ -110,7 +104,6 @@ func verify(xml string, publicCert string, id string) error {
 	}
 	defer deleteTempFile(samlXmlsecInput.Name())
 
-	//fmt.Println("xmlsec1", "--verify", "--pubkey-cert-pem", publicCertFile.Name(), "--id-attr:ID", id, samlXmlsecInput.Name())
 	output, err := exec.Command("xmlsec1", "--verify", "--pubkey-cert-pem", publicCertFile.Name(), "--id-attr:ID", id, samlXmlsecInput.Name()).CombinedOutput()
 	if err != nil {
 		return errors.New(err.Error() + " : " + string(output))
@@ -126,17 +119,22 @@ func DefaultSignature(pemEncodedPublicKey string) Signature {
 	certStr := base64.StdEncoding.EncodeToString(pemBlock.Bytes)
 
 	return Signature{
-		CanonicalizationMethod: Method{
-			Algorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
-		},
-		SignatureMethod: Method{
-			Algorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
-		},
-		ReferenceTransforms: []Method{
-			Method{Algorithm: "http://www.w3.org/2000/09/xmldsig#enveloped-signature"},
-		},
-		DigestMethod: Method{
-			Algorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+		Id: "Signature1",
+		SignedInfo: SignedInfo{
+			CanonicalizationMethod: Method{
+				Algorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+			},
+			SignatureMethod: Method{
+				Algorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+			},
+			Reference: Reference{
+				ReferenceTransforms: []Method{
+					Method{Algorithm: "http://www.w3.org/2000/09/xmldsig#enveloped-signature"},
+				},
+				DigestMethod: Method{
+					Algorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+				},
+			},
 		},
 		X509Certificate: &SignatureX509Data{
 			X509Certificate: certStr,
@@ -166,7 +164,8 @@ const encTempl = `<EncryptedData Type="http://www.w3.org/2001/04/xmlenc#Element"
 	</CipherData>
 </EncryptedData>`
 
-func Encrypt(xml string, publicKey string) (string, error) {
+// Encrypt encrypt an xml plaintext value with a private key
+func Encrypt(plaintext string, publicKey string) (string, error) {
 
 	publicKeyFile, err := writeToTemp(publicKey)
 	if err != nil {
@@ -174,7 +173,7 @@ func Encrypt(xml string, publicKey string) (string, error) {
 	}
 	defer deleteTempFile(publicKeyFile.Name())
 
-	samlXmlsecInput, err := writeToTemp(xml)
+	samlXmlsecInput, err := writeToTemp(plaintext)
 	if err != nil {
 		return "", err
 	}
@@ -193,8 +192,6 @@ func Encrypt(xml string, publicKey string) (string, error) {
 	defer deleteTempFile(samlXmlsecOutput.Name())
 	samlXmlsecOutput.Close()
 
-	// fmt.Println("xmlsec1", "--decrypt", "--pubkey-cert-pem", publicKeyFile.Name(),
-	// 	"--output", samlXmlsecOutput.Name(), samlXmlsecInput.Name())
 	output, err := exec.Command("xmlsec1", "--encrypt", "--session-key", "aes-256-cbc", "--pubkey-cert-pem", publicKeyFile.Name(),
 		"--output", samlXmlsecOutput.Name(), "--xml-data", samlXmlsecInput.Name(), samlXmlsecTemplate.Name()).CombinedOutput()
 	if err != nil {
@@ -209,7 +206,8 @@ func Encrypt(xml string, publicKey string) (string, error) {
 	return encryptedXML, nil
 }
 
-func Decrypt(xml string, privateKey string) (string, error) {
+// Decrypt decrypt an xml cipher value with a third-party public key
+func Decrypt(cipher string, privateKey string) (string, error) {
 
 	privateKeyFile, err := writeToTemp(privateKey)
 	if err != nil {
@@ -217,7 +215,7 @@ func Decrypt(xml string, privateKey string) (string, error) {
 	}
 	defer deleteTempFile(privateKeyFile.Name())
 
-	samlXmlsecInput, err := writeToTemp(xml)
+	samlXmlsecInput, err := writeToTemp(cipher)
 	if err != nil {
 		return "", err
 	}
@@ -230,8 +228,6 @@ func Decrypt(xml string, privateKey string) (string, error) {
 	defer deleteTempFile(samlXmlsecOutput.Name())
 	samlXmlsecOutput.Close()
 
-	// fmt.Println("xmlsec1", "--decrypt", "--privkey-pem", privateKeyFile.Name(),
-	// 	"--output", samlXmlsecOutput.Name(), samlXmlsecInput.Name())
 	output, err := exec.Command("xmlsec1", "--decrypt", "--privkey-pem", privateKeyFile.Name(), "--id-attr:ID", "http://www.w3.org/2001/04/xmlenc#EncryptedData",
 		"--output", samlXmlsecOutput.Name(), samlXmlsecInput.Name()).CombinedOutput()
 	if err != nil {

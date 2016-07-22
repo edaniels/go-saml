@@ -25,14 +25,24 @@ type Method struct {
 type Signature struct {
 	XMLName xml.Name `xml:"http://www.w3.org/2000/09/xmldsig# Signature"`
 
-	CanonicalizationMethod Method             `xml:"SignedInfo>CanonicalizationMethod"`
-	SignatureMethod        Method             `xml:"SignedInfo>SignatureMethod"`
-	ReferenceTransforms    []Method           `xml:"SignedInfo>Reference>Transforms>Transform"`
-	DigestMethod           Method             `xml:"SignedInfo>Reference>DigestMethod"`
-	DigestValue            string             `xml:"SignedInfo>Reference>DigestValue"`
-	SignatureValue         string             `xml:"SignatureValue"`
-	KeyName                string             `xml:"KeyInfo>KeyName,omitempty"`
-	X509Certificate        *SignatureX509Data `xml:"KeyInfo>X509Data,omitempty"`
+	Id              string             `xml:"Id,attr"`
+	SignedInfo      SignedInfo         `xml:"SignedInfo"`
+	SignatureValue  string             `xml:"SignatureValue"`
+	KeyName         string             `xml:"KeyInfo>KeyName,omitempty"`
+	X509Certificate *SignatureX509Data `xml:"KeyInfo>X509Data,omitempty"`
+}
+
+type SignedInfo struct {
+	CanonicalizationMethod Method    `xml:"CanonicalizationMethod"`
+	SignatureMethod        Method    `xml:"SignatureMethod"`
+	Reference              Reference `xml:"Reference"`
+}
+
+type Reference struct {
+	URI                 string   `xml:"URI,attr"`
+	ReferenceTransforms []Method `xml:"Transforms>Transform"`
+	DigestMethod        Method   `xml:"DigestMethod"`
+	DigestValue         string   `xml:"DigestValue"`
 }
 
 // SignatureX509Data represents the <X509Data> element of <Signature>

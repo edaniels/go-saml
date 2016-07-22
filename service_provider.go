@@ -42,6 +42,12 @@ type ServiceProvider struct {
 
 	// IDPMetadata is the metadata from the identity provider.
 	IDPMetadata *Metadata
+
+	// State that Authn Requests will be signed
+	AuthnRequestsSigned bool
+
+	// Request that IdP assertions be signed
+	WantAssertionsSigned bool
 }
 
 // MaxIssueDelay is the longest allowed time between when a SAML assertion is
@@ -65,8 +71,8 @@ func (sp *ServiceProvider) Metadata() *Metadata {
 		EntityID:   sp.MetadataURL,
 		ValidUntil: TimeNow().Add(DefaultValidDuration),
 		SPSSODescriptor: &SPSSODescriptor{
-			AuthnRequestsSigned:        false,
-			WantAssertionsSigned:       true,
+			AuthnRequestsSigned:        sp.AuthnRequestsSigned,
+			WantAssertionsSigned:       sp.WantAssertionsSigned,
 			ProtocolSupportEnumeration: "urn:oasis:names:tc:SAML:2.0:protocol",
 			KeyDescriptor: []KeyDescriptor{
 				{
@@ -100,8 +106,8 @@ func (sp *ServiceProvider) Metadata() *Metadata {
 // MakeRedirectAuthenticationRequest creates a SAML authentication request using
 // the HTTP-Redirect binding. It returns a URL that we will redirect the user to
 // in order to start the auth process.
-func (sp *ServiceProvider) MakeRedirectAuthenticationRequest(relayState string) (*url.URL, error) {
-	req, err := sp.MakeAuthenticationRequest(sp.GetSSOBindingLocation(HTTPRedirectBinding))
+func (sp *ServiceProvider) MakeRedirectAuthenticationRequest(relayState string, opts AuthnRequestOptions) (*url.URL, error) {
+	req, err := sp.MakeAuthenticationRequest(sp.GetSSOBindingLocation(HTTPRedirectBinding), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +116,7 @@ func (sp *ServiceProvider) MakeRedirectAuthenticationRequest(relayState string) 
 
 // Redirect returns a URL suitable for using the redirect binding with the request
 func (req *AuthnRequest) Redirect(relayState string) *url.URL {
+
 	w := &bytes.Buffer{}
 	w1 := base64.NewEncoder(base64.StdEncoding, w)
 	w2, _ := flate.NewWriter(w1, 9)
@@ -178,8 +185,13 @@ func (sp *ServiceProvider) getIDPSigningCert() []byte {
 	return certBytes
 }
 
+type AuthnRequestOptions struct {
+	Sign    bool
+	Encrypt bool
+}
+
 // MakeAuthenticationRequest produces a new AuthnRequest object for idpURL.
-func (sp *ServiceProvider) MakeAuthenticationRequest(idpURL string) (*AuthnRequest, error) {
+func (sp *ServiceProvider) MakeAuthenticationRequest(idpURL string, opts AuthnRequestOptions) (*AuthnRequest, error) {
 	req := AuthnRequest{
 		AssertionConsumerServiceURL: sp.AcsURL,
 		Destination:                 idpURL,
@@ -198,14 +210,38 @@ func (sp *ServiceProvider) MakeAuthenticationRequest(idpURL string) (*AuthnReque
 			Format: "urn:oasis:names:tc:SAML:2.0:nameid-format:transient",
 		},
 	}
-	return &req, nil
+
+	if !opts.Sign {
+		return &req, nil
+	}
+
+	signatureTemplate := xmlsec.DefaultSignature(sp.Certificate)
+	req.Signature = &signatureTemplate
+	req.Signature.SignedInfo.Reference.URI = "#" + req.ID
+
+	reqXml, err := xml.Marshal(&req)
+	if err != nil {
+		return nil, err
+	}
+
+	signedXml, err := xmlsec.SignRequest(string(reqXml), sp.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	signedReq := &AuthnRequest{}
+	if err := xml.Unmarshal([]byte(signedXml), signedReq); err != nil {
+		return nil, err
+	}
+
+	return signedReq, nil
 }
 
 // MakePostAuthenticationRequest creates a SAML authentication request using
 // the HTTP-POST binding. It returns HTML text representing an HTML form that
 // can be sent presented to a browser to initiate the login process.
-func (sp *ServiceProvider) MakePostAuthenticationRequest(relayState string) ([]byte, error) {
-	req, err := sp.MakeAuthenticationRequest(sp.GetSSOBindingLocation(HTTPPostBinding))
+func (sp *ServiceProvider) MakePostAuthenticationRequest(relayState string, opts AuthnRequestOptions) ([]byte, error) {
+	req, err := sp.MakeAuthenticationRequest(sp.GetSSOBindingLocation(HTTPPostBinding), opts)
 	if err != nil {
 		return nil, err
 	}
