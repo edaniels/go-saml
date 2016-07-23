@@ -72,10 +72,10 @@ type IdentityProvider struct {
 }
 
 // Metadata returns the metadata structure for this identity provider.
-func (idp *IdentityProvider) Metadata() *Metadata {
+func (idp *IdentityProvider) Metadata() (*Metadata, error) {
 	cert, _ := pem.Decode([]byte(idp.Certificate))
 	if cert == nil {
-		panic("invalid IDP certificate")
+		return nil, fmt.Errorf("invalid IDP certificate")
 	}
 	certStr := base64.StdEncoding.EncodeToString(cert.Bytes)
 
@@ -119,31 +119,36 @@ func (idp *IdentityProvider) Metadata() *Metadata {
 				},
 			},
 		},
-	}
+	}, nil
 }
 
 // Handler returns an http.Handler that serves the metadata and SSO
 // URLs
-func (idp *IdentityProvider) Handler() http.Handler {
+func (idp *IdentityProvider) Handler() (http.Handler, error) {
 	mux := http.NewServeMux()
 
 	metadataURL, err := url.Parse(idp.MetadataURL)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	mux.HandleFunc(metadataURL.Path, idp.ServeMetadata)
 
 	ssoURL, err := url.Parse(idp.SSOURL)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	mux.HandleFunc(ssoURL.Path, idp.ServeSSO)
-	return mux
+	return mux, nil
 }
 
 // ServeMetadata is an http.HandlerFunc that serves the IDP metadata
 func (idp *IdentityProvider) ServeMetadata(w http.ResponseWriter, r *http.Request) {
-	buf, _ := xml.MarshalIndent(idp.Metadata(), "", "  ")
+	md, err := idp.Metadata()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	buf, _ := xml.MarshalIndent(md, "", "  ")
 	w.Header().Set("Content-Type", "application/samlmetadata+xml")
 	w.Write(buf)
 }
@@ -414,19 +419,30 @@ func (req *IdpAuthnRequest) MakeAssertion(session *Session) error {
 		})
 	}
 
+	rnd, err := randomBytes(20)
+	if err != nil {
+		return err
+	}
+
+	md, err := req.IDP.Metadata()
+	if err != nil {
+		return err
+	}
+
+	now := TimeNow()
 	req.Assertion = &Assertion{
-		ID:           fmt.Sprintf("id-%x", randomBytes(20)),
-		IssueInstant: TimeNow(),
+		ID:           fmt.Sprintf("id-%x", rnd),
+		IssueInstant: now,
 		Version:      "2.0",
 		Issuer: &Issuer{
 			Format: "XXX",
-			Value:  req.IDP.Metadata().EntityID,
+			Value:  md.EntityID,
 		},
 		Signature: &signatureTemplate,
 		Subject: &Subject{
 			NameID: &NameID{
 				Format:          "urn:oasis:names:tc:SAML:2.0:nameid-format:transient",
-				NameQualifier:   req.IDP.Metadata().EntityID,
+				NameQualifier:   md.EntityID,
 				SPNameQualifier: req.ServiceProviderMetadata.EntityID,
 				Value:           session.NameID,
 			},
@@ -435,14 +451,14 @@ func (req *IdpAuthnRequest) MakeAssertion(session *Session) error {
 				SubjectConfirmationData: SubjectConfirmationData{
 					Address:      req.HTTPRequest.RemoteAddr,
 					InResponseTo: req.Request.ID,
-					NotOnOrAfter: TimeNow().Add(MaxIssueDelay),
+					NotOnOrAfter: now.Add(MaxIssueDelay),
 					Recipient:    req.ACSEndpoint.Location,
 				},
 			},
 		},
 		Conditions: &Conditions{
-			NotBefore:    TimeNow(),
-			NotOnOrAfter: TimeNow().Add(MaxIssueDelay),
+			NotBefore:    now,
+			NotOnOrAfter: now.Add(MaxIssueDelay),
 			AudienceRestriction: &AudienceRestriction{
 				Audience: &Audience{Value: req.ServiceProviderMetadata.EntityID},
 			},
@@ -499,9 +515,15 @@ func (req *IdpAuthnRequest) MakeResponse() error {
 			return err
 		}
 	}
+
+	rnd, err := randomBytes(20)
+	if err != nil {
+		return err
+	}
+
 	req.Response = &Response{
 		Destination:  req.ACSEndpoint.Location,
-		ID:           fmt.Sprintf("id-%x", randomBytes(20)),
+		ID:           fmt.Sprintf("id-%x", rnd),
 		InResponseTo: req.Request.ID,
 		IssueInstant: TimeNow(),
 		Version:      "2.0",

@@ -111,17 +111,23 @@ func (sp *ServiceProvider) MakeRedirectAuthenticationRequest(relayState string, 
 	if err != nil {
 		return nil, err
 	}
-	return req.Redirect(relayState), nil
+
+	redirect, err := req.Redirect(relayState)
+	if err != nil {
+		return nil, err
+	}
+
+	return redirect, nil
 }
 
 // Redirect returns a URL suitable for using the redirect binding with the request
-func (req *AuthnRequest) Redirect(relayState string) *url.URL {
+func (req *AuthnRequest) Redirect(relayState string) (*url.URL, error) {
 
 	w := &bytes.Buffer{}
 	w1 := base64.NewEncoder(base64.StdEncoding, w)
 	w2, _ := flate.NewWriter(w1, 9)
 	if err := xml.NewEncoder(w2).Encode(req); err != nil {
-		panic(err)
+		return nil, err
 	}
 	w2.Close()
 	w1.Close()
@@ -135,7 +141,7 @@ func (req *AuthnRequest) Redirect(relayState string) *url.URL {
 	}
 	rv.RawQuery = query.Encode()
 
-	return rv
+	return rv, nil
 }
 
 // GetSSOBindingLocation returns URL for the IDP's Single Sign On Service binding
@@ -192,10 +198,15 @@ type AuthnRequestOptions struct {
 
 // MakeAuthenticationRequest produces a new AuthnRequest object for idpURL.
 func (sp *ServiceProvider) MakeAuthenticationRequest(idpURL string, opts AuthnRequestOptions) (*AuthnRequest, error) {
+	rnd, err := randomBytes(20)
+	if err != nil {
+		return nil, err
+	}
+
 	req := AuthnRequest{
 		AssertionConsumerServiceURL: sp.AcsURL,
 		Destination:                 idpURL,
-		ID:                          fmt.Sprintf("id-%x", randomBytes(20)),
+		ID:                          fmt.Sprintf("id-%x", rnd),
 		IssueInstant:                TimeNow(),
 		Version:                     "2.0",
 		Issuer: Issuer{
@@ -245,14 +256,20 @@ func (sp *ServiceProvider) MakePostAuthenticationRequest(relayState string, opts
 	if err != nil {
 		return nil, err
 	}
-	return req.Post(relayState), nil
+
+	post, err := req.Post(relayState)
+	if err != nil {
+		return nil, err
+	}
+
+	return post, nil
 }
 
 // Post returns an HTML form suitable for using the HTTP-POST binding with the request
-func (req *AuthnRequest) Post(relayState string) []byte {
+func (req *AuthnRequest) Post(relayState string) ([]byte, error) {
 	reqBuf, err := xml.Marshal(req)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	encodedReqBuf := base64.StdEncoding.EncodeToString(reqBuf)
 
@@ -275,10 +292,10 @@ func (req *AuthnRequest) Post(relayState string) []byte {
 
 	rv := bytes.Buffer{}
 	if err := tmpl.Execute(&rv, data); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return rv.Bytes()
+	return rv.Bytes(), nil
 }
 
 // AssertionAttributes is a list of AssertionAttribute

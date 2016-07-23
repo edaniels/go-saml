@@ -94,7 +94,7 @@ OwJlNCASPZRH/JmF8tX0hoHuAQ==
 	}
 
 	// bind the service provider and the IDP
-	test.SP.IDPMetadata = test.IDP.Metadata()
+	test.SP.IDPMetadata, _ = test.IDP.Metadata()
 	test.IDP.ServiceProviders[test.SP.MetadataURL] = test.SP.Metadata()
 }
 
@@ -107,7 +107,9 @@ func (msp *mockSessionProvider) GetSession(w http.ResponseWriter, r *http.Reques
 }
 
 func (test *IdentityProviderTest) TestCanProduceMetadata(c *C) {
-	c.Assert(test.IDP.Metadata(), DeepEquals, &Metadata{
+	md, err := test.IDP.Metadata()
+	c.Assert(err, IsNil)
+	c.Assert(md, DeepEquals, &Metadata{
 		ValidUntil:    TimeNow().Add(DefaultValidDuration),
 		CacheDuration: DefaultValidDuration,
 		EntityID:      "https://idp.example.com/saml/metadata",
@@ -147,13 +149,18 @@ func (test *IdentityProviderTest) TestCanProduceMetadata(c *C) {
 
 	// fails if the certificate is invalid
 	test.IDP.Certificate = "not a valid PEM certificate"
-	c.Assert(func() { test.IDP.Metadata() }, PanicMatches, "invalid IDP certificate")
+	_, err = test.IDP.Metadata()
+	c.Assert(err, ErrorMatches, "invalid IDP certificate")
 }
 
 func (test *IdentityProviderTest) TestHTTPCanHandleMetadataRequest(c *C) {
 	w := httptest.NewRecorder()
 	r, _ := http.NewRequest("GET", "https://idp.example.com/saml/metadata", nil)
-	test.IDP.Handler().ServeHTTP(w, r)
+
+	hndlr, err := test.IDP.Handler()
+	c.Assert(err, IsNil)
+
+	hndlr.ServeHTTP(w, r)
 	c.Assert(w.Code, Equals, http.StatusOK)
 	c.Assert(w.Header().Get("Content-type"), Equals, "application/samlmetadata+xml")
 	c.Assert(strings.HasPrefix(string(w.Body.Bytes()), "<EntityDescriptor"), Equals, true)
@@ -162,13 +169,17 @@ func (test *IdentityProviderTest) TestHTTPCanHandleMetadataRequest(c *C) {
 func (test *IdentityProviderTest) TestHTTPCanHandleSSORequest(c *C) {
 	w := httptest.NewRecorder()
 	r, _ := http.NewRequest("GET", "https://idp.example.com/saml/sso?RelayState=ThisIsTheRelayState&SAMLRequest=lJJBayoxFIX%2FypC9JhnU5wszAz7lgWCLaNtFd5fMbQ1MkmnunVb%2FfUfbUqEgdhs%2BTr5zkmLW8S5s8KVD4mzvm0Cl6FIwEciRCeCRDFuznd2sTD5Upk2Ro42NyGZEmNjFMI%2BBOo9pi%2BnVWbzfrEqxY27JSEntEPfg2waHNnpJ4JtcgiWRLfoLXYBjwDfu6p%2B8JIoiWy5K4eqBUipXIzVRUwXKKtRK53qkJ3qqQVuNPUjU4TIQQ%2BBS5EqPBzofKH2ntBn%2FMervo8jWnyX%2BuVC78FwKkT1gopNKX1JUxSklXTMIfM0gsv8xeeDL%2BPGk7%2FF0Qg0GdnwQ1cW5PDLUwFDID6uquO1Dlot1bJw9%2FPLRmia%2BzRMCYyk4dSiq6205QSDXOxfy3KAq5Pkvqt4DAAD%2F%2Fw%3D%3D", nil)
-	test.IDP.Handler().ServeHTTP(w, r)
+
+	hndlr, err := test.IDP.Handler()
+	c.Assert(err, IsNil)
+
+	hndlr.ServeHTTP(w, r)
 	c.Assert(w.Code, Equals, http.StatusOK)
 
 	// rejects requests that are invalid
 	w = httptest.NewRecorder()
 	r, _ = http.NewRequest("GET", "https://idp.example.com/saml/sso?RelayState=ThisIsTheRelayState&SAMLRequest=PEF1dGhuUmVxdWVzdA%3D%3D", nil)
-	test.IDP.Handler().ServeHTTP(w, r)
+	hndlr.ServeHTTP(w, r)
 	c.Assert(w.Code, Equals, http.StatusBadRequest)
 }
 

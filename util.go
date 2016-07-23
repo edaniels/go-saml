@@ -14,10 +14,10 @@ var TimeNow = func() time.Time { return time.Now().UTC() }
 // rand.Reader, but it can be replaced for testing.
 var RandReader = rand.Reader
 
-func randomBytes(n int) []byte {
+func randomBytes(n int) ([]byte, error) {
 	rv := make([]byte, n)
 	if _, err := RandReader.Read(rv); err != nil {
-		panic(err)
+		return nil, err
 	}
-	return rv
+	return rv, nil
 }

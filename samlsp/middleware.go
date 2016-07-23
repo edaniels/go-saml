@@ -13,7 +13,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 
-	"github.com/crewjam/saml"
+	"github.com/edaniels/go-saml"
 )
 
 // Middleware implements middleware than allows a web application
@@ -57,14 +57,6 @@ type Middleware struct {
 
 const cookieMaxAge = time.Hour // TODO(ross): must be configurable
 const cookieName = "token"
-
-func randomBytes(n int) []byte {
-	rv := make([]byte, n)
-	if _, err := saml.RandReader.Read(rv); err != nil {
-		panic(err)
-	}
-	return rv
-}
 
 // ServeHTTP implements http.Handler and serves the SAML-specific HTTP endpoints
 // on the URIs specified by m.ServiceProvider.MetadataURL and
