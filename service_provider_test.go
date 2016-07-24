@@ -113,11 +113,12 @@ func (test *ServiceProviderTest) TestCanProduceRedirectRequest(c *C) {
 	err := xml.Unmarshal([]byte(test.IDPMetadata), &s.IDPMetadata)
 	c.Assert(err, IsNil)
 
-	redirectURL, err := s.MakeRedirectAuthenticationRequest("relayState", AuthnRequestOptions{})
+	redirectURL, err := s.MakeRedirectAuthenticationRequest("relayState")
 	c.Assert(err, IsNil)
 	c.Assert(redirectURL.String(), Equals, "https://idp.testshib.org/idp/profile/SAML2/Redirect/SSO?RelayState=relayState&SAMLRequest=lJJRr9MwDIX%2FSpX3NXHora6ittK4E9KkC0wr8MBbSL0tok1G7AL796QDxJ5gvDr28XdO3KxnPoU9fpmRuPg%2BjYFaMadgoiVPJtgJybAz%2Ffr1s9GlMucUObo4imJNhIl9DE8x0Dxh6jF99Q7f759bcWI%2Bk5ESHuoaqqoqwzHFz6WPkuw0amkdiWKTd%2FpgF40%2FE344l5wf6OQ%2FlTEdl4LMWw9%2BRLlgaLnHwSd0LPv%2BrSi2m1b4YaWU0qpStXpUVjmFoEBDBTU8ggUHqJXWutJ1HiCacRuIbeBWaAUPK9ArBe8UmBdgNHwUxe6XzZc%2BDD4cWyGKD5joSppjEF1zVUn3RGZ%2FByWKVzFNlv%2FevlSyn8O11WBgzxfR%2FSvQCdkOlm0jf4J1zZuss93s4ujd5T9%2Fdhzjt6eElrEVnGYU3f3AnGwgn7EbeUvQNfL21LofAQAA%2F%2F8%3D")
 
-	redirectURL, err = s.MakeRedirectAuthenticationRequest("relayState", AuthnRequestOptions{Sign: true})
+	s.AuthnRequestsSigned = true
+	redirectURL, err = s.MakeRedirectAuthenticationRequest("relayState")
 	c.Assert(err, IsNil)
 	c.Assert(redirectURL.String(), Equals, "https://idp.testshib.org/idp/profile/SAML2/Redirect/SSO?RelayState=relayState&SAMLRequest=nFZZk6owGv0rFrdqXrq6WbXVUavCpohRWcTljSUCDQQlLLa%2FflBv9%2B3pujNz7zxQlQpfzjnfyQlhBKoywiY6V4iUnUuWYjKmqgIPc5fEZIjdDJFh6Q8tABdD7oUZnoq8zP08pTqAEFSUcY6lHJMqQ4WFijr20cZcjKmoLE9kSNNst9djBUF4wWGRJy9xThM3Szna9QnVkVvOGLs3jF8r4uD0UrYvSBR7L3kR3ibolvUYp4i%2ByeBoEwVxgfyStqwV1dHkMRUHz1yfczmfQzzDc7zA9%2Fg%2B7%2FI%2BjwRG4FoBPaEvuIIvoHYBIRXSMCldXI4pjmG7zyz3zLA2ww55dsixB6qz%2FtmmGOMgxuGYojoOKshdaWsDNRndUYo%2Fscz9MIrqqHmRueV%2FL7%2FNtP0c76VDhMu4fKcm%2F8vQDJVu4JbuiH4Im4ysOGy9rQr0ofEG0SI0TfPS8HdrOYZhaGZAtwUBicMfrTfBmPpcyFIPFBRo%2BJhPRpKLcxz7bhpf75sGURnlQQekYV7EZZT9BwqWZpkbxTO6%2BM8%2BK%2BAfLS79e7Avsv8Q%2Fd8aKIj7TCL3Jpz%2BBjQZmeiICoR91NmY2pj68TehmYzswsXktinky%2Fjv1CFcozQ%2FoeCZfGi7Cf1E%2BzpuWeQ4bM%2FB%2F2PDhwVfET7wHDet0GQ7xZG2E%2Bxt4OPumzpbefNZitzrwtHGH%2BselSP607efpn7E4dPgRyGS3VNTb%2FnrwN7vnHdrICbWbHYWpKBai6ejmDmOeKLPhavx9Opp7Wgp37zOXbPkGZhc%2FPQfPy7gn%2FneGnhVmV2Itsa7YndW6WC7RQrUn%2BIKm4riLTa2qBcYrg41MWysmKrOqune9%2FXXuje4g%2Fg10IIn%2FeTyveO07Pc05PGLxj%2F3tX3Xa5oygeGKhQeM5Xz8JSc%2F%2B9XR%2B6O%2FXZcZyO2Reoyk2xk%2BtoEt0QRqmvh6lSTghJJkyOrV07XTq8dDGyzFMDlHSTwdNIwIjI0KZNCHBmkkYy87hjFVmrmzuSoLCJIpYDeKBBrJZJSLLANdDJeOCHIIuEPtXRULiuBeA5pm7k0Hb%2FvtJff4JQNFYSfbyrXla%2BBb%2B8ghC538Nsd8m2vW8i8uMYKS48CLdAXzB1fYvgpEaDSNFN716TJYZh7XvyhvwHjUQChtL%2FWeU4k7HVwDWRLx9XufigrASnwzQBPukxZKAewazvZZdHjjmX6yXUQHxxbqVZWeL%2FQg9rKu2O8d19tmo%2BsGF7Mc3JdX5rW8Vsn6PYuJLUeGe36f9%2FWzR%2Ffmb1GGIFZWgV1b62y26mfswanRfNNb5rqJ6WxNi%2FKruu1y28grNruFhWaOpR%2B3yTLpWUKUDKAzsElj1%2B%2BmptcmaZgdHR7xOSnyud9ugQLA7%2Fau7Sk0JAhTbfU0XfpTlKBaDxM3OcEAnOdHwgmZO%2FUGjFzbC888mPLrrsYsxI4oWoPomu5idbFfaXgHJLjthn5uqkdkGwsrryDs593XiKn0t6OdVfl2tjAWcS%2FC6pNfS0RR4%2FlBAJ76JIfZqme7xby%2FYrpl%2F1rjVTNPlxKw1gdzRs8ztV%2FumCifVcAYt4H%2BntbHzCPJ9Ge6f%2BV%2BMlq2V44mr%2FM09t%2F%2F8icgTfNGKlDLM6bKomo%2FaH9%2Bt5W3j13c3nAj%2BquCVtvXv5LJvwIAAP%2F%2F")
 }
@@ -137,7 +138,7 @@ func (test *ServiceProviderTest) TestCanProducePostRequest(c *C) {
 	err := xml.Unmarshal([]byte(test.IDPMetadata), &s.IDPMetadata)
 	c.Assert(err, IsNil)
 
-	form, err := s.MakePostAuthenticationRequest("relayState", AuthnRequestOptions{})
+	form, err := s.MakePostAuthenticationRequest("relayState")
 	c.Assert(err, IsNil)
 
 	c.Assert(string(form), Equals, ``+

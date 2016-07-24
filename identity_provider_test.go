@@ -194,7 +194,7 @@ func (test *IdentityProviderTest) TestCanHandleRequestWithNewSession(c *C) {
 
 	w := httptest.NewRecorder()
 
-	requestURL, err := test.SP.MakeRedirectAuthenticationRequest("ThisIsTheRelayState", AuthnRequestOptions{})
+	requestURL, err := test.SP.MakeRedirectAuthenticationRequest("ThisIsTheRelayState")
 	c.Assert(err, IsNil)
 	c.Assert(requestURL.String(), Equals, "https://idp.example.com/saml/sso?RelayState=ThisIsTheRelayState&SAMLRequest=lJJRqxMxEIX%2FypL3NpPQW69hd6HeIhSqlFZ98G3IjjawSdbMrLb%2F3m1VLAilvoaTM985M%2FVqlGPa07eRWKpT7BM3aizJZeTALmEkduLdYfVu6%2Bwc3FCyZJ97Va2YqUjI6SUnHiOVA5XvwdPH%2FbZRR5GBndY8zOmEcehp7nPUjLG3Gj2raj0NDAkvBn%2FloftXr5mzqjbrRoVuBgAWFrCEZ0DwQAaMNQuzNM8GjTdkwVq7sMvpA%2FNIm8SCSRplwTzNjJ2B%2BQDGPb1y8Pqzqna%2Fw7wJqQvpa6NU9YkKX5GmsKqtry7lkWLwTx2qeptLRLkvv7xMeb5cpY6SBDmr9m5tkQQ7FKz1L6q2fj%2BZbNa73Ad%2F%2Fs%2Fl9X3%2B8VIIhRolZSTVPk4rBROHibnWtwRtrW%2Bvqf0ZAAD%2F%2Fw%3D%3D")
 
@@ -216,7 +216,7 @@ func (test *IdentityProviderTest) TestCanHandleRequestWithExistingSession(c *C) 
 	}
 
 	w := httptest.NewRecorder()
-	requestURL, err := test.SP.MakeRedirectAuthenticationRequest("ThisIsTheRelayState", AuthnRequestOptions{})
+	requestURL, err := test.SP.MakeRedirectAuthenticationRequest("ThisIsTheRelayState")
 	c.Assert(err, IsNil)
 	c.Assert(requestURL.String(), Equals,
 		"https://idp.example.com/saml/sso?RelayState=ThisIsTheRelayState&SAMLRequest=lJJRqxMxEIX%2FypL3NpPQW69hd6HeIhSqlFZ98G3IjjawSdbMrLb%2F3m1VLAilvoaTM985M%2FVqlGPa07eRWKpT7BM3aizJZeTALmEkduLdYfVu6%2Bwc3FCyZJ97Va2YqUjI6SUnHiOVA5XvwdPH%2FbZRR5GBndY8zOmEcehp7nPUjLG3Gj2raj0NDAkvBn%2FloftXr5mzqjbrRoVuBgAWFrCEZ0DwQAaMNQuzNM8GjTdkwVq7sMvpA%2FNIm8SCSRplwTzNjJ2B%2BQDGPb1y8Pqzqna%2Fw7wJqQvpa6NU9YkKX5GmsKqtry7lkWLwTx2qeptLRLkvv7xMeb5cpY6SBDmr9m5tkQQ7FKz1L6q2fj%2BZbNa73Ad%2F%2Fs%2Fl9X3%2B8VIIhRolZSTVPk4rBROHibnWtwRtrW%2Bvqf0ZAAD%2F%2Fw%3D%3D")
@@ -240,7 +240,7 @@ func (test *IdentityProviderTest) TestCanHandlePostRequestWithExistingSession(c 
 
 	w := httptest.NewRecorder()
 
-	authRequest, err := test.SP.MakeAuthenticationRequest(test.SP.GetSSOBindingLocation(HTTPRedirectBinding), AuthnRequestOptions{})
+	authRequest, err := test.SP.MakeAuthenticationRequest(test.SP.GetSSOBindingLocation(HTTPRedirectBinding))
 	c.Assert(err, IsNil)
 	authRequestBuf, err := xml.Marshal(authRequest)
 	c.Assert(err, IsNil)

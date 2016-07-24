@@ -106,8 +106,8 @@ func (sp *ServiceProvider) Metadata() *Metadata {
 // MakeRedirectAuthenticationRequest creates a SAML authentication request using
 // the HTTP-Redirect binding. It returns a URL that we will redirect the user to
 // in order to start the auth process.
-func (sp *ServiceProvider) MakeRedirectAuthenticationRequest(relayState string, opts AuthnRequestOptions) (*url.URL, error) {
-	req, err := sp.MakeAuthenticationRequest(sp.GetSSOBindingLocation(HTTPRedirectBinding), opts)
+func (sp *ServiceProvider) MakeRedirectAuthenticationRequest(relayState string) (*url.URL, error) {
+	req, err := sp.MakeAuthenticationRequest(sp.GetSSOBindingLocation(HTTPRedirectBinding))
 	if err != nil {
 		return nil, err
 	}
@@ -191,13 +191,8 @@ func (sp *ServiceProvider) getIDPSigningCert() []byte {
 	return certBytes
 }
 
-type AuthnRequestOptions struct {
-	Sign    bool
-	Encrypt bool
-}
-
 // MakeAuthenticationRequest produces a new AuthnRequest object for idpURL.
-func (sp *ServiceProvider) MakeAuthenticationRequest(idpURL string, opts AuthnRequestOptions) (*AuthnRequest, error) {
+func (sp *ServiceProvider) MakeAuthenticationRequest(idpURL string) (*AuthnRequest, error) {
 	rnd, err := randomBytes(20)
 	if err != nil {
 		return nil, err
@@ -222,7 +217,7 @@ func (sp *ServiceProvider) MakeAuthenticationRequest(idpURL string, opts AuthnRe
 		},
 	}
 
-	if !opts.Sign {
+	if !sp.AuthnRequestsSigned {
 		return &req, nil
 	}
 
@@ -251,8 +246,8 @@ func (sp *ServiceProvider) MakeAuthenticationRequest(idpURL string, opts AuthnRe
 // MakePostAuthenticationRequest creates a SAML authentication request using
 // the HTTP-POST binding. It returns HTML text representing an HTML form that
 // can be sent presented to a browser to initiate the login process.
-func (sp *ServiceProvider) MakePostAuthenticationRequest(relayState string, opts AuthnRequestOptions) ([]byte, error) {
-	req, err := sp.MakeAuthenticationRequest(sp.GetSSOBindingLocation(HTTPPostBinding), opts)
+func (sp *ServiceProvider) MakePostAuthenticationRequest(relayState string) ([]byte, error) {
+	req, err := sp.MakeAuthenticationRequest(sp.GetSSOBindingLocation(HTTPPostBinding))
 	if err != nil {
 		return nil, err
 	}
