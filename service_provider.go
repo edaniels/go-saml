@@ -345,6 +345,10 @@ func (ivr *InvalidResponseError) Error() string {
 // information, the Error() method returns a static string.
 func (sp *ServiceProvider) ParseResponse(req *http.Request, possibleRequestIDs []string) (*Assertion, error) {
 	now := TimeNow()
+
+	if err := req.ParseForm(); err != nil {
+		return nil, err
+	}
 	retErr := &InvalidResponseError{
 		Now:      now,
 		Response: req.PostForm.Get("SAMLResponse"),
